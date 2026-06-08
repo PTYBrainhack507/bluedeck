@@ -43,7 +43,7 @@ Esto:
 
 ## 2) Abrir el control en el teléfono
 
-1. En **Chrome de Android**, abre la URL de la PWA (ver más abajo cómo publicarla con HTTPS).
+1. En **Chrome de Android**, abre: **https://ptybrainhack507.github.io/bluedeck/**
 2. Menú de Chrome → **Añadir a pantalla de inicio** / **Instalar app**.
 3. Ábrela, pulsa **Conectar** y elige **BlueDeck** en la lista de Bluetooth.
 
