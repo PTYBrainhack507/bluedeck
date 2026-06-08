@@ -96,7 +96,8 @@
   <h1>Control de tu Mac</h1>
   <p>Conecta por Bluetooth con el daemon <b>BlueDeck</b> que corre en tu Mac. No usa internet ni la red del hotel.</p>
   <button class="bigbtn" id="connectBtn">🔵 Conectar</button>
-  <p class="hint" id="ovhint">Asegúrate de que BlueDeck esté corriendo en la Mac.</p>
+  <button id="connectAllBtn" style="background:none;border:1px solid var(--line);color:var(--dim);border-radius:12px;padding:11px 18px;font-size:13px;margin-top:2px;">¿No aparece? Buscar todos los dispositivos</button>
+  <p class="hint" id="ovhint">Asegúrate de que BlueDeck esté corriendo en la Mac y de tener la <b>Ubicación/GPS activada</b> en el teléfono (Android la exige para buscar por Bluetooth).</p>
 </div>
 
 <header>
@@ -235,19 +236,25 @@ function setState(s){
   if(s==='on'){overlay.classList.add('hidden');}
 }
 
-async function connect(){
+async function doConnect(opts){
   if(!navigator.bluetooth){ovhint.textContent='⚠️ Tu navegador no soporta Web Bluetooth. Usa Chrome en Android.';return;}
   try{
     setState('connecting');
-    device=await navigator.bluetooth.requestDevice({
-      filters:[{name:'BlueDeck'}], optionalServices:[SVC]
-    });
+    device=await navigator.bluetooth.requestDevice(opts);
     device.addEventListener('gattserverdisconnected',onDisconnect);
     await openGatt();
   }catch(e){
     setState('off');
-    ovhint.textContent='No se pudo conectar: '+(e.message||e);
+    ovhint.textContent=(e.name==='NotFoundError'?'No se eligió ningún dispositivo. ':'No se pudo conectar: '+(e.message||e));
   }
+}
+// Conexión normal: filtra por nombre, prefijo o servicio (cualquiera que coincida)
+function connect(){
+  doConnect({filters:[{name:'BlueDeck'},{namePrefix:'Blue'},{services:[SVC]}], optionalServices:[SVC]});
+}
+// Red de seguridad: muestra TODOS los Bluetooth cercanos (por si el nombre no se anuncia)
+function connectAll(){
+  doConnect({acceptAllDevices:true, optionalServices:[SVC]});
 }
 
 async function openGatt(){
@@ -385,6 +392,7 @@ document.querySelectorAll('nav button').forEach(btn=>{
 });
 
 document.getElementById('connectBtn').onclick=connect;
+document.getElementById('connectAllBtn').onclick=connectAll;
 
 // reconexión rápida si ya habíamos emparejado (Chrome recuerda permisos)
 window.addEventListener('load',async()=>{

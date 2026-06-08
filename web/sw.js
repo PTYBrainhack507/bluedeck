@@ -1,5 +1,5 @@
 // Service worker: cachea la app para que funcione 100% offline (hotel sin internet).
-const CACHE = 'bluedeck-v1';
+const CACHE = 'bluedeck-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
