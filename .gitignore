@@ -1,0 +1,9 @@
+# Binario compilado (se genera con build.sh)
+mac/BlueDeck.app/
+
+# Temporales
+**/__pycache__/
+*.pyc
+.DS_Store
+/tmp/
+*.log

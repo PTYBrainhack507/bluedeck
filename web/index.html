@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>BlueDeck — Control de Mac</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#0a0e1a; --panel:#121829; --panel2:#1a2238; --line:#26304d;
+    --txt:#e8edf7; --dim:#8a96b4; --accent:#3b82f6; --accent2:#2563eb;
+    --ok:#22c55e; --bad:#ef4444; --warn:#f59e0b;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;}
+  body{display:flex;flex-direction:column;height:100dvh;}
+  /* Header */
+  header{display:flex;align-items:center;gap:10px;padding:max(env(safe-area-inset-top),12px) 16px 12px;
+    background:linear-gradient(180deg,#0d1322,#0a0e1a);border-bottom:1px solid var(--line);}
+  .logo{font-weight:800;font-size:18px;letter-spacing:.5px;}
+  .logo span{color:var(--accent);}
+  .status{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--bad);box-shadow:0 0 10px var(--bad);transition:.3s;}
+  .dot.on{background:var(--ok);box-shadow:0 0 10px var(--ok);}
+  .dot.connecting{background:var(--warn);box-shadow:0 0 10px var(--warn);animation:pulse 1s infinite;}
+  @keyframes pulse{50%{opacity:.4}}
+  /* Connect overlay */
+  #overlay{position:fixed;inset:0;z-index:50;background:rgba(10,14,26,.96);backdrop-filter:blur(8px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:30px;text-align:center;}
+  #overlay.hidden{display:none;}
+  #overlay h1{font-size:26px;margin:0;}
+  #overlay p{color:var(--dim);margin:0;max-width:320px;line-height:1.5;font-size:14px;}
+  .bigbtn{background:var(--accent);color:#fff;border:none;border-radius:var(--radius);
+    padding:18px 36px;font-size:18px;font-weight:700;box-shadow:0 8px 24px rgba(59,130,246,.4);}
+  .bigbtn:active{transform:scale(.96);background:var(--accent2);}
+  .hint{font-size:12px;color:var(--dim);margin-top:6px;}
+  /* Content */
+  main{flex:1;overflow:hidden;position:relative;}
+  .tab{position:absolute;inset:0;display:none;flex-direction:column;padding:14px;gap:12px;overflow-y:auto;}
+  .tab.active{display:flex;}
+  /* Tab bar */
+  nav{display:flex;background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);}
+  nav button{flex:1;background:none;border:none;color:var(--dim);padding:10px 4px 12px;font-size:11px;
+    display:flex;flex-direction:column;align-items:center;gap:4px;}
+  nav button .ic{font-size:22px;}
+  nav button.active{color:var(--accent);}
+  /* Buttons grid */
+  .grid{display:grid;gap:10px;}
+  .g2{grid-template-columns:1fr 1fr;}
+  .g3{grid-template-columns:1fr 1fr 1fr;}
+  .g4{grid-template-columns:repeat(4,1fr);}
+  .btn{background:var(--panel2);border:1px solid var(--line);border-radius:14px;color:var(--txt);
+    padding:16px 8px;font-size:15px;font-weight:600;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:5px;min-height:62px;transition:transform .05s,background .1s;}
+  .btn .ic{font-size:22px;}
+  .btn .lbl{font-size:11px;color:var(--dim);font-weight:500;}
+  .btn:active{transform:scale(.94);background:var(--accent);border-color:var(--accent);}
+  .btn:active .lbl{color:#dbeafe;}
+  .btn.wide{grid-column:1/-1;}
+  .btn.accent{background:var(--accent);border-color:var(--accent);}
+  .section-title{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin:4px 2px -2px;}
+  /* D-pad */
+  .dpad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:10px;
+    aspect-ratio:1;max-width:300px;margin:6px auto;width:100%;}
+  .dpad .btn{min-height:0;height:100%;font-size:26px;border-radius:18px;}
+  .dpad .ok{background:var(--accent);border-color:var(--accent);font-size:18px;font-weight:800;}
+  .d-up{grid-area:1/2}.d-left{grid-area:2/1}.d-ok{grid-area:2/2}.d-right{grid-area:2/3}.d-down{grid-area:3/2}
+  /* Trackpad */
+  #pad{flex:1;background:radial-gradient(circle at 50% 40%,#16203a,#0e1424);border:1px solid var(--line);
+    border-radius:18px;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:14px;
+    touch-action:none;position:relative;min-height:240px;text-align:center;}
+  #pad .padhint{opacity:.5;pointer-events:none;padding:0 30px;line-height:1.6;}
+  .padrow{display:flex;gap:10px;}
+  .padrow .btn{flex:1;min-height:54px;}
+  /* Keyboard */
+  #txt{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:14px;color:var(--txt);
+    padding:16px;font-size:17px;resize:none;}
+  #txt:focus{outline:none;border-color:var(--accent);}
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#000d;color:#fff;
+    padding:10px 18px;border-radius:20px;font-size:13px;opacity:0;transition:.3s;pointer-events:none;z-index:60;}
+  .toast.show{opacity:1;}
+  .slider-label{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);}
+</style>
+</head>
+<body>
+
+<div id="overlay">
+  <div class="logo" style="font-size:34px;">Blue<span>Deck</span></div>
+  <h1>Control de tu Mac</h1>
+  <p>Conecta por Bluetooth con el daemon <b>BlueDeck</b> que corre en tu Mac. No usa internet ni la red del hotel.</p>
+  <button class="bigbtn" id="connectBtn">🔵 Conectar</button>
+  <p class="hint" id="ovhint">Asegúrate de que BlueDeck esté corriendo en la Mac.</p>
+</div>
+
+<header>
+  <div class="logo">Blue<span>Deck</span></div>
+  <div class="status"><span id="statustxt">Desconectado</span><span class="dot" id="dot"></span></div>
+</header>
+
+<main>
+  <!-- KODI -->
+  <section class="tab active" id="tab-kodi">
+    <div class="section-title">Navegación</div>
+    <div class="dpad">
+      <button class="btn d-up"   data-key="up">▲</button>
+      <button class="btn d-left" data-key="left">◀</button>
+      <button class="btn ok d-ok" data-key="return">OK</button>
+      <button class="btn d-right" data-key="right">▶</button>
+      <button class="btn d-down" data-key="down">▼</button>
+    </div>
+    <div class="grid g3">
+      <button class="btn" data-key="backspace"><span class="ic">↩︎</span><span class="lbl">Atrás</span></button>
+      <button class="btn" data-key="escape"><span class="ic">⌂</span><span class="lbl">Inicio/Salir</span></button>
+      <button class="btn" data-key="c"><span class="ic">☰</span><span class="lbl">Menú</span></button>
+    </div>
+    <div class="section-title">Reproducción</div>
+    <div class="grid g3">
+      <button class="btn" data-key="r"><span class="ic">⏪</span><span class="lbl">Rebobinar</span></button>
+      <button class="btn accent" data-key="space"><span class="ic">⏯</span><span class="lbl">Play/Pausa</span></button>
+      <button class="btn" data-key="f"><span class="ic">⏩</span><span class="lbl">Avanzar</span></button>
+      <button class="btn" data-key="comma"><span class="ic">⏮</span><span class="lbl">Anterior</span></button>
+      <button class="btn" data-key="x"><span class="ic">⏹</span><span class="lbl">Detener</span></button>
+      <button class="btn" data-key="period"><span class="ic">⏭</span><span class="lbl">Siguiente</span></button>
+    </div>
+    <div class="section-title">Volumen y vista</div>
+    <div class="grid g4">
+      <button class="btn" data-vol="down"><span class="ic">🔉</span><span class="lbl">Vol −</span></button>
+      <button class="btn" data-vol="up"><span class="ic">🔊</span><span class="lbl">Vol +</span></button>
+      <button class="btn" data-vol="mute"><span class="ic">🔇</span><span class="lbl">Silencio</span></button>
+      <button class="btn" data-key="i"><span class="ic">ℹ️</span><span class="lbl">Info</span></button>
+      <button class="btn" data-key="t"><span class="ic">💬</span><span class="lbl">Subtít.</span></button>
+      <button class="btn" data-key="m"><span class="ic">🎚</span><span class="lbl">OSD</span></button>
+      <button class="btn" data-key="backslash"><span class="ic">⛶</span><span class="lbl">Pantalla</span></button>
+      <button class="btn" data-app="Kodi"><span class="ic">▶️</span><span class="lbl">Abrir Kodi</span></button>
+    </div>
+  </section>
+
+  <!-- TRACKPAD -->
+  <section class="tab" id="tab-pad">
+    <div id="pad"><div class="padhint">Desliza para mover el cursor<br>Toca = clic · 2 dedos = clic derecho<br>Desliza 2 dedos = scroll</div></div>
+    <div class="padrow">
+      <button class="btn" id="clickL"><span class="ic">👆</span><span class="lbl">Clic izq.</span></button>
+      <button class="btn" id="clickR"><span class="ic">✌️</span><span class="lbl">Clic der.</span></button>
+      <button class="btn" id="dragBtn"><span class="ic">✊</span><span class="lbl">Arrastrar</span></button>
+    </div>
+  </section>
+
+  <!-- TECLADO -->
+  <section class="tab" id="tab-key">
+    <div class="section-title">Escribe y envía a la Mac</div>
+    <textarea id="txt" rows="3" placeholder="Escribe aquí… (se envía en vivo)" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+    <div class="grid g4">
+      <button class="btn" data-key="return"><span class="lbl">⏎ Enter</span></button>
+      <button class="btn" data-key="backspace"><span class="lbl">⌫ Borrar</span></button>
+      <button class="btn" data-key="escape"><span class="lbl">Esc</span></button>
+      <button class="btn" data-key="tab"><span class="lbl">⇥ Tab</span></button>
+      <button class="btn" data-key="left"><span class="ic">←</span></button>
+      <button class="btn" data-key="up"><span class="ic">↑</span></button>
+      <button class="btn" data-key="down"><span class="ic">↓</span></button>
+      <button class="btn" data-key="right"><span class="ic">→</span></button>
+    </div>
+    <div class="section-title">Multimedia (sistema)</div>
+    <div class="grid g3">
+      <button class="btn" data-media="prev"><span class="ic">⏮</span></button>
+      <button class="btn" data-media="playpause"><span class="ic">⏯</span></button>
+      <button class="btn" data-media="next"><span class="ic">⏭</span></button>
+    </div>
+  </section>
+
+  <!-- APPS -->
+  <section class="tab" id="tab-apps">
+    <div class="section-title">Atajos</div>
+    <div class="grid g2">
+      <button class="btn" data-hotkey="cmd+space"><span class="ic">🔍</span><span class="lbl">Spotlight</span></button>
+      <button class="btn" data-hotkey="cmd+tab"><span class="ic">🔄</span><span class="lbl">Cambiar app</span></button>
+      <button class="btn" data-sys="mission"><span class="ic">🪟</span><span class="lbl">Mission Control</span></button>
+      <button class="btn" data-sys="launchpad"><span class="ic">🚀</span><span class="lbl">Launchpad</span></button>
+      <button class="btn" data-hotkey="cmd+ctrl+f"><span class="ic">⛶</span><span class="lbl">Pantalla compl.</span></button>
+      <button class="btn" data-hotkey="cmd+w"><span class="ic">✖️</span><span class="lbl">Cerrar ventana</span></button>
+    </div>
+    <div class="section-title">Apps</div>
+    <div class="grid g3">
+      <button class="btn" data-app="Kodi"><span class="ic">🎬</span><span class="lbl">Kodi</span></button>
+      <button class="btn" data-app="Safari"><span class="ic">🧭</span><span class="lbl">Safari</span></button>
+      <button class="btn" data-app="Music"><span class="ic">🎵</span><span class="lbl">Música</span></button>
+      <button class="btn" data-app="System Settings"><span class="ic">⚙️</span><span class="lbl">Ajustes</span></button>
+      <button class="btn" data-app="Finder"><span class="ic">📁</span><span class="lbl">Finder</span></button>
+      <button class="btn" data-app="Terminal"><span class="ic">⌨️</span><span class="lbl">Terminal</span></button>
+    </div>
+    <div class="section-title">Sistema</div>
+    <div class="grid g3">
+      <button class="btn" data-sys="lock"><span class="ic">🔒</span><span class="lbl">Bloquear</span></button>
+      <button class="btn" data-sys="displaysleep"><span class="ic">🌙</span><span class="lbl">Apagar pant.</span></button>
+      <button class="btn" data-sys="sleep"><span class="ic">💤</span><span class="lbl">Suspender</span></button>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button class="active" data-tab="kodi"><span class="ic">🎬</span>Kodi</button>
+  <button data-tab="pad"><span class="ic">🖱️</span>Trackpad</button>
+  <button data-tab="key"><span class="ic">⌨️</span>Teclado</button>
+  <button data-tab="apps"><span class="ic">🚀</span>Apps</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SVC='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const RX ='6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+const TX ='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const enc=new TextEncoder();
+
+let device=null, rxChar=null, txChar=null, connected=false, reconnecting=false;
+const dot=document.getElementById('dot');
+const statustxt=document.getElementById('statustxt');
+const overlay=document.getElementById('overlay');
+const ovhint=document.getElementById('ovhint');
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1400);}
+function buzz(ms){try{navigator.vibrate&&navigator.vibrate(ms||8);}catch(e){}}
+
+function setState(s){
+  connected=(s==='on');
+  dot.className='dot'+(s==='on'?' on':s==='connecting'?' connecting':'');
+  statustxt.textContent=s==='on'?'Conectado':s==='connecting'?'Conectando…':'Desconectado';
+  if(s==='on'){overlay.classList.add('hidden');}
+}
+
+async function connect(){
+  if(!navigator.bluetooth){ovhint.textContent='⚠️ Tu navegador no soporta Web Bluetooth. Usa Chrome en Android.';return;}
+  try{
+    setState('connecting');
+    device=await navigator.bluetooth.requestDevice({
+      filters:[{name:'BlueDeck'}], optionalServices:[SVC]
+    });
+    device.addEventListener('gattserverdisconnected',onDisconnect);
+    await openGatt();
+  }catch(e){
+    setState('off');
+    ovhint.textContent='No se pudo conectar: '+(e.message||e);
+  }
+}
+
+async function openGatt(){
+  setState('connecting');
+  const server=await device.gatt.connect();
+  const svc=await server.getPrimaryService(SVC);
+  rxChar=await svc.getCharacteristic(RX);
+  try{
+    txChar=await svc.getCharacteristic(TX);
+    await txChar.startNotifications();
+    txChar.addEventListener('characteristicvaluechanged',e=>{
+      const v=new TextDecoder().decode(e.target.value);
+      if(v.startsWith('HELLO')) toast('✅ '+v);
+    });
+  }catch(e){/* TX opcional */}
+  reconnecting=false;
+  setState('on');
+  buzz(20);
+  toast('Conectado a la Mac');
+}
+
+function onDisconnect(){
+  setState('off');
+  if(reconnecting) return;
+  reconnecting=true;
+  let tries=0;
+  const retry=async()=>{
+    if(connected||!device){reconnecting=false;return;}
+    tries++;
+    statustxt.textContent='Reconectando… ('+tries+')';
+    try{ await openGatt(); }
+    catch(e){ if(tries<20) setTimeout(retry,1500); else {reconnecting=false; overlay.classList.remove('hidden');} }
+  };
+  setTimeout(retry,800);
+}
+
+// --- envío de comandos ---
+let pending=false;
+async function send(cmd,withoutResponse=true){
+  if(!rxChar) return;
+  try{
+    const data=enc.encode(cmd);
+    if(withoutResponse && rxChar.writeValueWithoutResponse) await rxChar.writeValueWithoutResponse(data);
+    else await rxChar.writeValue(data);
+  }catch(e){/* swallow: BLE busy */}
+}
+
+// --- trackpad con throttle a ~60fps ---
+let accX=0, accY=0, rafQueued=false, lastTouch=null, moved=0, touchStart=0, dragging=false, twoFinger=false;
+const pad=document.getElementById('pad');
+const SENS=1.7;
+
+function flushMove(){
+  rafQueued=false;
+  if(accX===0 && accY===0) return;
+  const dx=Math.round(accX), dy=Math.round(accY);
+  accX-=dx; accY-=dy;
+  if(dx||dy) send(`MOVE ${dx} ${dy}`);
+}
+function queueMove(dx,dy){accX+=dx*SENS;accY+=dy*SENS;if(!rafQueued){rafQueued=true;requestAnimationFrame(flushMove);}}
+
+pad.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  touchStart=Date.now();moved=0;
+  twoFinger=e.touches.length>=2;
+  lastTouch={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  if(dragging) send('MDOWN l');
+},{passive:false});
+
+pad.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  const t=e.touches[0];
+  const dx=t.clientX-lastTouch.x, dy=t.clientY-lastTouch.y;
+  lastTouch={x:t.clientX,y:t.clientY};
+  moved+=Math.abs(dx)+Math.abs(dy);
+  if(e.touches.length>=2){ // scroll con 2 dedos
+    send(`SCROLL ${Math.round(-dy*1.2)} ${Math.round(-dx*1.2)}`);
+  }else{
+    queueMove(dx,dy);
+  }
+},{passive:false});
+
+pad.addEventListener('touchend',e=>{
+  e.preventDefault();
+  const dt=Date.now()-touchStart;
+  if(dragging){send('MUP l');return;}
+  if(dt<200 && moved<10){ // tap = click
+    if(twoFinger) send('CLICK r'); else send('CLICK l');
+    buzz();
+  }
+},{passive:false});
+
+document.getElementById('clickL').onclick=()=>{send('CLICK l');buzz();};
+document.getElementById('clickR').onclick=()=>{send('CLICK r');buzz();};
+document.getElementById('dragBtn').onclick=function(){
+  dragging=!dragging;
+  this.style.background=dragging?'var(--accent)':'';
+  this.querySelector('.lbl').textContent=dragging?'Arrastrando':'Arrastrar';
+  toast(dragging?'Modo arrastre ON':'Modo arrastre OFF');
+};
+
+// --- teclado de texto en vivo ---
+const txt=document.getElementById('txt');
+txt.addEventListener('input',e=>{
+  const data=e.data;
+  if(e.inputType==='insertText' && data){ send('TYPE '+data,false); }
+  else if(e.inputType==='insertLineBreak'){ send('KEY return'); }
+  else if(e.inputType==='deleteContentBackward'){ send('KEY backspace'); }
+  // mantener el textarea vacío para no acumular
+  if(txt.value.length>200) txt.value='';
+});
+txt.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();send('KEY return');} });
+
+// --- botones genéricos (delegación) ---
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-key],[data-hotkey],[data-app],[data-sys],[data-vol],[data-media]');
+  if(!b) return;
+  buzz();
+  if(b.dataset.key)   send('KEY '+b.dataset.key);
+  if(b.dataset.hotkey)send('HOTKEY '+b.dataset.hotkey);
+  if(b.dataset.app)   send('APP '+b.dataset.app);
+  if(b.dataset.sys)   send('SYS '+b.dataset.sys);
+  if(b.dataset.vol)   send('VOL '+b.dataset.vol);
+  if(b.dataset.media) send('MEDIA '+b.dataset.media);
+});
+
+// --- tabs ---
+document.querySelectorAll('nav button').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  };
+});
+
+document.getElementById('connectBtn').onclick=connect;
+
+// reconexión rápida si ya habíamos emparejado (Chrome recuerda permisos)
+window.addEventListener('load',async()=>{
+  if(navigator.bluetooth && navigator.bluetooth.getDevices){
+    try{
+      const devs=await navigator.bluetooth.getDevices();
+      const d=devs.find(x=>x.name==='BlueDeck');
+      if(d){ device=d; d.addEventListener('gattserverdisconnected',onDisconnect);
+        ovhint.textContent='Dispositivo recordado. Pulsa Conectar.'; }
+    }catch(e){}
+  }
+});
+
+// service worker para uso offline
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>

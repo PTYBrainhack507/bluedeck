@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>BlueDeck</string>
+    <key>CFBundleDisplayName</key>
+    <string>BlueDeck</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.bluedeck.daemon</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleExecutable</key>
+    <string>BlueDeck</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>BlueDeck usa Bluetooth para recibir comandos del control remoto de tu teléfono.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>BlueDeck usa Bluetooth para recibir comandos del control remoto de tu teléfono.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>BlueDeck usa eventos del sistema para controlar el volumen y abrir aplicaciones.</string>
+</dict>
+</plist>
